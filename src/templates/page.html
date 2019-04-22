@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+	<title> Divvy Shortest Path
+	</title>
+
+	<style>
+		body {
+			text-align: center;
+			background-blend-mode: lighten;
+		}
+		div {
+			margin-top:10px;
+			margin-bottom:10px;
+			font-size: 30px;
+		}
+		input.box {
+			font-size:30px;
+		}
+		input[type=submit] {
+			margin-top:15px;
+			margin-bottom:15px;
+			width: 300px;
+			height:50px;
+			font-size:30px;
+			background-color: #5AB9F9;
+		}
+		img.end {
+			width:300px;
+			height:200px;
+		}
+	</style>
+</head>
+
+
+{% load static %}
+<img src="{% static "images/divvy.png" %}" >
+
+<body>
+<div>
+	<form action="." method="POST">{% csrf_token %}
+		Starting Station	<input type="number" name="start" placeholder="starting station" class="box"/> 
+		Destination station <input type="number" name="dest" placeholder="destination station" class="box"/></br>
+		<input type="submit" value="Look For Best Path"/>
+	</form>
+</div>
+
+{% if path != None %}
+
+<h2> GJLS Shortest Path </h2>
+<div>
+{% for p in path %}
+{% if forloop.last %}
+{{ p }}
+{% else %}
+{{ p }} ---> 
+{% endif %}
+{% endfor %}
+</div>
+
+<h2> Estimating Travel Time </h2>
+<div>
+{% for t in time %}
+{% if forloop.last %}
+{{ t }} min
+{% else %}
+{{ t }} min --->
+{% endif %}
+{% endfor %}
+</div>
+
+<h2> Estimating Distance </h2>
+<div>
+{% for d in distance %}
+{% if forloop.last %}
+{{ d }} km
+{% else %}
+{{ d }} km ---> 
+{% endif %}
+{% endfor %}
+</div>
+
+<h2> Visualization </h2>
+
+{% endif %}
+
+{% load static %}
+<img src="{% static "images/bike.png" %}"  class="end">
+
+</body>
