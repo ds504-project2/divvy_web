@@ -166,7 +166,8 @@ var projection = d3.geoMercator()
 var path = d3.line()
     .x(function(d) { return projection([d.longitude,d.latitude])[0]; }) 
     .y(function(d) { return projection([d.longitude,d.latitude])[1]; })  
-    .curve(d3.curveStepAfter);  
+    // .curve(d3.curveMonotoneX); 
+    d3.curveStepAfter(); 
 
 // Zoom Brush    
 var brush = d3.brush()
@@ -224,29 +225,32 @@ base_map
 // var end_i = {{ path|last }}
 
 var path_ls = {{ path }}
-update_(path_ls);
+update_(path_ls)
 
 // console.log(start_i)
 // console.log(end_i)
 
-function path__(path_ls){
-	var list = [];
-	var step;
-	for (step=0; step<path_ls.length; step++){
-		row  = graphData.filter(function(d, i) {return d.id == path_ls[step];}); 
-		list.push(row[0]);
-	}
-	return list
-};
-
-//console.log(path_(path_ls));
 
 //Filter Points by Selected Stations:
-//function path_(start_i,end_i){
-//  var Path_Pts  = graphData.filter(function(d, i) {return d.id == start_i || d.id == end_i;}); 
-//  return Path_Pts  
-//};
-//console.log(path_(path_ls[0],path_ls[1]));
+function path_(start_i,end_i){
+  var Path_Pts  = graphData.filter(function(d, i) {return d.id == start_i || d.id == end_i;}); 
+  if (Path_Pts.length==2) {
+    Start = Path_Pts[0]
+    End = Path_Pts[1]
+    Taxi_x = Math.min(End.longitude,Start.longitude) 
+    Taxi_y = Math.min(End.latitude,Start.latitude)
+    dat = {"longitude": Taxi_x,"latitude": Taxi_y }
+    Path_Pts.push(dat);
+    Path_Pts[1] = Path_Pts[2] 
+    Path_Pts[2] = End}
+    // console.log(typeof(Path_Pts))
+    // console.log(Path_Pts)
+  return Path_Pts  
+};
+
+
+
+
 // //Filter Points by Selected Stations:
 // function path_(path_ls){
 // 	var All_Path_Pts;
@@ -329,14 +333,14 @@ function update_(path_ls) {
 			.style('fill', 'orange');
 		}
 	map.selectAll('path').remove();
-	//var step;
-	//for (step=0; step<path_ls.length-1; step++){
-	//	start_i = path_ls[step];
-	//	end_i = path_ls[step + 1];
-	map.append("path")
+	var step;
+	for (step=0; step<path_ls.length-1; step++){
+		start_i = path_ls[step];
+		end_i = path_ls[step + 1];
+		map.append("path")
 			.attr("class", "line")
-			.attr("d", path(path__(path_ls)))
-//	}
+			.attr("d", path(path_(start_i, end_i)))
+	}
 	// map.append("path")
 	// 	.attr("class", "line") 
 	// 	.attr("d", path(path_(path_ls) ));
@@ -388,12 +392,23 @@ function zoom() {
   map.selectAll("circle").transition(t)
       .attr("cx", function(d) { return projection([d.longitude,d.latitude])[0]; })
       .attr("cy", function(d) { return projection([d.longitude,d.latitude])[1]; });
-   map.selectAll('path').transition(t)
-       .attr("class", "line") 
-       .attr("d", path(path__(path_ls) ));  
+  var step;
+  map.selectAll('path').remove();
+  for (step=0; step<path_ls.length-1; step++){
+  	start_i = path_ls[step];
+  	end_i = path_ls[step+1];
+  	map.append("path")
+  		.attr("class", "line")
+  		.attr("d", path(path_(start_i, end_i)))
+  } 
+  // map.selectAll('path').transition(t)
+  //     .attr("class", "line") 
+  //     .attr("d", path(path_(path_ls) ));  
   base_map.selectAll('path').transition(t)
       .attr('d', pathGeneratorM)  
 }
+
+
 
 </script>
 
