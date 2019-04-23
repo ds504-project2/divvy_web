@@ -7,12 +7,32 @@
 	<style>
 		body {
 			text-align: center;
-			background-blend-mode: lighten;
 		}
-		div {
-			margin-top:10px;
-			margin-bottom:10px;
+
+		div#f {
+			font-size:30px;
+		}
+
+		div#wrapper {
+			width:100%;
+			margin:0px;
+		}
+		div#p1 {
+			width:50%;
+			margin:0px;
 			font-size: 30px;
+			float:left;
+		}
+
+		div#p2 {
+			width:50%;
+			margin:0px;
+			font-size:30px;
+			float:right;
+		}
+		div.img {
+			text-align:center;
+			margin:10px;
 		}
 		input.box {
 			font-size:30px;
@@ -29,62 +49,380 @@
 			width:300px;
 			height:200px;
 		}
+
+		path {
+	      stroke-width: 2;
+	      fill: none;
+	    }
+	    .axis path, .axis line {
+	      fill: none;
+	      stroke: grey;
+	      stroke-width: 1;
+	      shape-rendering: crispEdges;
+	    }
+	    .area {
+	      fill: #F0F8FF;
+	      stroke-width: 0;
+	  	}
+
+
+		.line {
+	    fill: none;
+	    stroke: #00b9e7;
+	    stroke-width: 2;
+		}
 	</style>
 </head>
 
 
+<body>
+<div class="img">
 {% load static %}
 <img src="{% static "images/divvy.png" %}" >
+</div>
 
-<body>
-<div>
+<div id="f">
 	<form action="." method="POST">{% csrf_token %}
-		Starting Station	<input type="number" name="start" placeholder="starting station" class="box"/> 
-		Destination station <input type="number" name="dest" placeholder="destination station" class="box"/></br>
+		Starting Station	<input type="number" name="start" placeholder="starting station" class="box" id="start"/> 
+		Destination station <input type="number" name="dest" placeholder="destination station" class="box" id="dest"/></br>
 		<input type="submit" value="Look For Best Path"/>
 	</form>
 </div>
 
 {% if path != None %}
+<div id="wrapper">
+<div id="p1">
+	<h2> GJLS Shortest Path </h2>
+	<div>
+	{% for p in path %}
+	{% if forloop.last %}
+	{{ p }}
+	{% else %}
+	{{ p }} ---> 
+	{% endif %}
+	{% endfor %}
+	</div>
 
-<h2> GJLS Shortest Path </h2>
-<div>
-{% for p in path %}
-{% if forloop.last %}
-{{ p }}
-{% else %}
-{{ p }} ---> 
-{% endif %}
-{% endfor %}
+	<h2> Estimating Travel Time </h2>
+	<div>
+	{% for t in time %}
+	{% if forloop.last %}
+	{{ t }} min
+	{% else %}
+	{{ t }} min --->
+	{% endif %}
+	{% endfor %}
+	</div>
+
+	<h2> Estimating Distance </h2>
+	<div>
+	{% for d in distance %}
+	{% if forloop.last %}
+	{{ d }} km
+	{% else %}
+	{{ d }} km ---> 
+	{% endif %}
+	{% endfor %}
+	</div>
+
 </div>
 
-<h2> Estimating Travel Time </h2>
-<div>
-{% for t in time %}
-{% if forloop.last %}
-{{ t }} min
-{% else %}
-{{ t }} min --->
-{% endif %}
-{% endfor %}
+
+
+<div id="p2">
+
+<svg width="400" height="800"></svg>
+<script src="http://d3js.org/d3.v4.min.js"></script>
+<script>
+
+// Map SVG Canvas:
+var svg = d3.select("svg"),
+    margin = {top: 0, right: 0, bottom: 0, left: 0},
+    width = +svg.attr("width") 
+    height = +svg.attr("height") 
+var svg = svg.attr("transform", "translate(" + margin.left + "," + margin.top + ")")    
+
+var map = svg
+    .append("g");
+    //.attr("transform", "translate(" + margin.left + "," + margin.top + ")"); 
+var base_map = svg.append("g");
+
+// Varibles:
+var start_i = 0; 
+var end_i = 0;
+var long_centroid = -87.66204512499999;
+var lat_centroid = 41.90075;
+var zoom0 = 95000;
+//var map_height = 733.74;
+//var map_width = 375.79;
+
+// Station Points Projection:
+var projection = d3.geoMercator()
+    .scale(zoom0)
+    .center([long_centroid,lat_centroid])
+    .translate([width/2,height/2]);
+
+// Path to Connect Start to End Station
+var path = d3.line()
+    .x(function(d) { return projection([d.longitude,d.latitude])[0]; }) 
+    .y(function(d) { return projection([d.longitude,d.latitude])[1]; })  
+    .curve(d3.curveMonotoneX);  
+
+// Zoom Brush    
+var brush = d3.brush()
+    .extent([[0, 0], [width,height]])
+    .on("end", brushended),
+    idleTimeout,
+    idleDelay = 350;
+    
+svg.append("g")
+    .attr("class", "brush")
+    .call(brush);
+
+
+// Load Data:
+
+var graphData = JSON.parse('{{ chart_data | escapejs }}');
+console.log(graphData);
+
+var graphData3 = JSON.parse('{{ chart_data3 | escapejs }}');
+console.log(graphData3);
+
+//Enter Station Points:
+var stations = map.selectAll("circle").data(graphData)
+stations  
+    .enter().append("circle")
+    .attr("cx", function(d) {return projection([d.longitude,d.latitude])[0]})
+    .attr("cy", function(d) {return projection([d.longitude,d.latitude])[1]})
+    .attr("r", function(d) {return 0.1*d.totalDocks});
+
+//Enter Bike Paths:
+projectionM = d3.geoMercator().fitExtent([[margin, margin], [width - margin, height - margin]], graphData3);
+pathGeneratorM = d3.geoPath().projection(projection);
+
+base_map
+    .append('path')
+    .datum(graphData3)
+    .attr('d', pathGeneratorM)
+    .attr('fill', 'none')
+    .attr('stroke', '#999999')
+    .attr('stroke-width', '2')
+    .attr('opacity',0.6);
+
+//Load User Inputs:
+// d3.select("#start").on("input", function() {
+//     start_i = +this.value;
+//     update_(start_i,end_i);
+//     });
+
+// d3.select("#dest").on("input", function() {
+//     end_i = +this.value;
+//     update_(start_i,end_i);
+//     });
+
+// var start_i = {{ path|first }}
+// var end_i = {{ path|last }}
+
+var path_ls = {{ path }}
+update_(path_ls)
+
+// console.log(start_i)
+// console.log(end_i)
+
+
+//Filter Points by Selected Stations:
+function path_(start_i,end_i){
+  var Path_Pts  = graphData.filter(function(d, i) {return d.id == start_i || d.id == end_i;}); 
+  if (Path_Pts.length==2) {
+    Start = Path_Pts[0]
+    End = Path_Pts[1]
+    Taxi_x = Math.min(End.longitude,Start.longitude) 
+    Taxi_y = Math.min(End.latitude,Start.latitude)
+    dat = {"longitude": Taxi_x,"latitude": Taxi_y }
+    Path_Pts.push(dat);
+    Path_Pts[1] = Path_Pts[2] 
+    Path_Pts[2] = End}
+    // console.log(typeof(Path_Pts))
+    // console.log(Path_Pts)
+  return Path_Pts  
+};
+
+
+
+
+// //Filter Points by Selected Stations:
+// function path_(path_ls){
+// 	var All_Path_Pts;
+// 	var step;
+// 	for (step=0; step<path_ls.length-1; step++){
+// 		start_i = path_ls[step];
+// 		end_i = path_ls[step + 1];
+// 		var Path_Pts  = graphData.filter(function(d, i) {return d.id == start_i || d.id == end_i;}); 
+// 		if (Path_Pts.length==2) {
+// 			Start = Path_Pts[0]
+// 			End = Path_Pts[1]
+// 			Taxi_x = Math.min(End.longitude,Start.longitude) 
+// 			Taxi_y = Math.min(End.latitude,Start.latitude)
+// 			dat = {"longitude": Taxi_x,"latitude": Taxi_y }
+// 			Path_Pts.push(dat);
+// 			Path_Pts[1] = Path_Pts[2] 
+// 			Path_Pts[2] = End;
+// 		}
+// 		if (step == 0){
+// 			All_Path_Pts = Path_Pts;
+// 		}
+// 		else{
+// 			All_Path_Pts.concat(Path_Pts)
+// 		}
+// 		// console.log(typeof(Path_Pts))
+// 		// console.log(Path_Pts)
+// 		// return Path_Pts  
+// 	}
+// 	return All_Path_Pts
+// }
+
+// //Update Start Point (Green), End Point (Red), Draw Connection (Blue):
+// function update_(start_i,end_i) {
+//   map.selectAll('circle')
+//       .filter(function(d, i) {return d.id != start_i || d.id != end_i;})
+//       .attr("r", function(d) {return 0.1*d.totalDocks})
+//       .style('fill', 'black');
+  
+//   map.selectAll('circle')
+//       .filter(function(d, i) {return d.id == start_i;})
+//       .attr("r", function(d) {return 5})
+//       .style('fill', 'green');
+
+//   map.selectAll('circle')
+//       .filter(function(d, i) {return d.id == end_i;})
+//       .attr("r", function(d) {return 5})
+//       .style('fill', 'red');
+
+//   map.selectAll('path').remove();
+
+//   map.append("path")
+//     .attr("class", "line") 
+//     .attr("d", path(path_(start_i,end_i) ));
+// };
+
+
+//Update Start Point (Green), End Point (Red), Draw Connection (Blue):
+function update_(path_ls) {
+	map.selectAll('circle')
+	  .filter(function(d, i) {return d.id != path_ls[0] || d.id != path_ls[path_ls.length-1];})
+	  .attr("r", function(d) {return 0.1*d.totalDocks})
+	  .style('fill', 'black');
+
+	map.selectAll('circle')
+	  .filter(function(d, i) {return d.id == path_ls[0];})
+	  .attr("r", function(d) {return 5})
+	  .style('fill', 'green');
+
+	map.selectAll('circle')
+	  .filter(function(d, i) {return d.id == path_ls[path_ls.length-1];})
+	  .attr("r", function(d) {return 5})
+	  .style('fill', 'red');
+
+	// add color for all middle points
+	var step;
+	for (step=1; step<(path_ls.length-1); step++){
+		map.selectAll('circle')
+			.filter(function(d, i) {return d.id == path_ls[step];})
+			.attr("r", function(d) {return 5})
+			.style('fill', 'orange');
+		}
+	map.selectAll('path').remove();
+	var step;
+	for (step=0; step<path_ls.length-1; step++){
+		start_i = path_ls[step];
+		end_i = path_ls[step + 1];
+		map.append("path")
+			.attr("class", "line")
+			.attr("d", path(path_(start_i, end_i)))
+	}
+	// map.append("path")
+	// 	.attr("class", "line") 
+	// 	.attr("d", path(path_(path_ls) ));
+};
+
+// path_(start_i,end_i);
+
+
+function brushended() {    //Inspiration: https://bl.ocks.org/mbostock/f48fcdb929a620ed97877e4678ab15e6
+  var s = d3.event.selection;
+  if (!s) {
+    if (!idleTimeout) return idleTimeout = setTimeout(idled, idleDelay);
+    projection.center([long_centroid,lat_centroid]); 
+    projection.scale(zoom0); 
+  } else {
+    x1 = s[0][0]; //Longitude
+    x2 = s[1][0]; 
+    y1 = s[0][1]; //Latitude
+    y2 = s[1][1]; 
+    x_c = x2 - ((x2-x1)/2);
+    y_c = y1 - ((y1-y2)/2);  
+    pro = ((height*width)/((x1-x2)*(y1-y2))) 
+    zf = Math.log(pro)+1
+    projection.center(projection.invert([x_c,y_c]));
+    projection.scale(zoom0*zf);
+    svg.select(".brush").call(brush.move, null);
+  }
+  zoom();
+}
+
+function idled() {
+  idleTimeout = null;
+}
+
+// function zoom() {
+//   var t = svg.transition().duration(750);
+//   map.selectAll("circle").transition(t)
+//       .attr("cx", function(d) { return projection([d.longitude,d.latitude])[0]; })
+//       .attr("cy", function(d) { return projection([d.longitude,d.latitude])[1]; });
+//   map.selectAll('path').transition(t)
+//       .attr("class", "line") 
+//       .attr("d", path(path_(start_i,end_i) ));  
+//   base_map.selectAll('path').transition(t)
+//       .attr('d', pathGeneratorM)  
+// }
+
+function zoom() {
+  var t = svg.transition().duration(750);
+  map.selectAll("circle").transition(t)
+      .attr("cx", function(d) { return projection([d.longitude,d.latitude])[0]; })
+      .attr("cy", function(d) { return projection([d.longitude,d.latitude])[1]; });
+  var step;
+  map.selectAll('path').remove();
+  for (step=0; step<path_ls.length-1; step++){
+  	start_i = path_ls[step];
+  	end_i = path_ls[step+1];
+  	map.append("path")
+  		.attr("class", "line")
+  		.attr("d", path(path_(start_i, end_i)))
+  } 
+  // map.selectAll('path').transition(t)
+  //     .attr("class", "line") 
+  //     .attr("d", path(path_(path_ls) ));  
+  base_map.selectAll('path').transition(t)
+      .attr('d', pathGeneratorM)  
+}
+
+
+
+</script>
+
+
+
+
+</div>
 </div>
 
-<h2> Estimating Distance </h2>
-<div>
-{% for d in distance %}
-{% if forloop.last %}
-{{ d }} km
-{% else %}
-{{ d }} km ---> 
-{% endif %}
-{% endfor %}
-</div>
-
-<h2> Visualization </h2>
-
 {% endif %}
 
+<div class="img">
 {% load static %}
 <img src="{% static "images/bike.png" %}"  class="end">
+</div>
 
 </body>
+</html>
