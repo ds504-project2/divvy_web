@@ -166,7 +166,8 @@ var projection = d3.geoMercator()
 var path = d3.line()
     .x(function(d) { return projection([d.longitude,d.latitude])[0]; }) 
     .y(function(d) { return projection([d.longitude,d.latitude])[1]; })  
-    .curve(d3.curveMonotoneX);  
+    // .curve(d3.curveMonotoneX); 
+    d3.curveStepAfter(); 
 
 // Zoom Brush    
 var brush = d3.brush()
